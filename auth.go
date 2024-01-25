@@ -12,7 +12,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"net/http"
-	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -34,16 +33,11 @@ type responseWithStatus struct {
 //export go_authenticate
 func go_authenticate(pamh *C.pam_handle_t, argc C.int, pass *C.char, key *C.char) C.int {
 	logger := log.New()
-	file, err := os.OpenFile("simple2fa.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		panic(err)
-	}
-	logger.Out = file
-	defer file.Close()
-	logger.Println("===========================================")
+	prefix := "simple2fa"
+	logger.WithField("prefix", prefix).Info("Begin New auth request")
 
 	if argc != 2 {
-		logger.Println("You have to set password policy and api key")
+		logger.WithField("prefix", prefix).Println("You have to set password policy and api key")
 		return C.PAM_AUTH_ERR
 	}
 
@@ -72,7 +66,7 @@ func go_authenticate(pamh *C.pam_handle_t, argc C.int, pass *C.char, key *C.char
 			Username: username,
 		}
 	} else {
-		logger.Println(`You have to set password policy "send" or "skip"`)
+		logger.WithField("prefix", prefix).Println(`You have to set password policy "send" or "skip"`)
 		return C.PAM_AUTH_ERR
 	}
 
@@ -84,7 +78,7 @@ func go_authenticate(pamh *C.pam_handle_t, argc C.int, pass *C.char, key *C.char
 	json_data, err := json.Marshal(&body)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(json_data))
 	if err != nil {
-		logger.Println("Error making request", err)
+		logger.WithField("prefix", prefix).Println("Error making request", err)
 		return C.PAM_AUTH_ERR
 	}
 	req.Header.Add("Content-Type", "application/json")
@@ -99,21 +93,23 @@ func go_authenticate(pamh *C.pam_handle_t, argc C.int, pass *C.char, key *C.char
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Println("Error doing request", err)
+		logger.WithField("prefix", prefix).Println("Error doing request", err)
 		return C.PAM_AUTH_ERR
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		// Log the error and return PAM authentication failure
-		logger.Println("Authentication failed with status:", resp.Status)
-		logger.Println("Body:", string(json_data))
+		logger.WithField("prefix", prefix).Println("Authentication failed with status:", resp.Status)
+		logger.WithField("prefix", prefix).Println("Body:", string(json_data))
 		return C.PAM_AUTH_ERR
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&responseWithStatus)
 	if responseWithStatus.Status == "declined" {
+		logger.WithField("prefix", prefix).Println("User declined auth")
 		return C.PAM_AUTH_ERR
 	}
+	logger.WithField("prefix", prefix).Println("Auth success")
 	return C.PAM_SUCCESS
 }

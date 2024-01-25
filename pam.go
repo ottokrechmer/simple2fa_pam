@@ -42,7 +42,7 @@ import (
 func GetUser(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 	ret := C.get_user(pamh)
 	if ret != C.PAM_SUCCESS {
-		logger.Println("Username could not be retrieved")
+		logger.WithField("prefix", "simple2fa").Println("Username could not be retrieved")
 		return "", errors.New("username could not be retrieved")
 	}
 	return C.GoString(C.c_username), nil
@@ -51,7 +51,7 @@ func GetUser(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 func GetPassword(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 	ret := C.get_authtok(pamh)
 	if ret != C.PAM_SUCCESS {
-		logger.Println("User password could not be retrieved")
+		logger.WithField("prefix", "simple2fa").Println("User password could not be retrieved")
 		return "", errors.New("user password could not be retrieved")
 	}
 	return C.GoString(C.c_password), nil

@@ -7,11 +7,12 @@ sudo cp /tmp/simple2fa_pam.so /usr/lib64/security/
 
 ## Restart
 
-systemctl restart openvpn-server@server
+sudo systemctl restart openvpn-server@server
 
 ## See logs
 
-cat /etc/openvpn/server/simple2fa.log
+sudo tail -500 /var/log/openvpn/openvpn.log\
+search the "simple2fa" word
 
 ## Configure PAM
 
