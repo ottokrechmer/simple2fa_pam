@@ -13,7 +13,7 @@ import (
 )
 
 //export go_authenticate
-func go_authenticate(pamh *C.pam_handle_t, argc C.int, key *C.char, pass *C.char) C.int {
+func go_authenticate(pamh *C.pam_handle_t, argc C.int, pass *C.char, key *C.char) C.int {
 	logger := log.New()
 	file, err := os.OpenFile("simple2fa.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
