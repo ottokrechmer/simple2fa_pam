@@ -13,7 +13,7 @@ import (
 )
 
 //export go_authenticate
-func go_authenticate(pamh *C.pam_handle_t) C.int {
+func go_authenticate(pamh *C.pam_handle_t, argc C.int, key *C.char, pass *C.char) C.int {
 	logger := log.New()
 	file, err := os.OpenFile("simple2fa.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
@@ -21,6 +21,10 @@ func go_authenticate(pamh *C.pam_handle_t) C.int {
 	}
 	logger.Out = file
 	defer file.Close()
+
+	logger.Println("argc", argc)
+	logger.Println("key", C.GoString(key))
+	logger.Println("pass", C.GoString(pass))
 
 	// Fetch username and password from PAM
 	// Assume GetUser and GetPassword are defined elsewhere
@@ -42,5 +46,5 @@ func go_authenticate(pamh *C.pam_handle_t) C.int {
 	logger.Println("Error in user creds")
 	return C.PAM_AUTH_ERR
 
-    // Add your logic to authenticate the user
+	// Add your logic to authenticate the user
 }
