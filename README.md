@@ -1,16 +1,29 @@
-# build
-CGO_CFLAGS="-g -O2" go build --buildmode=c-shared -o /tmp/simple2fa_pam.so auth.go pam.go
+# Commands
+
+## Build
+
+CGO_CFLAGS="-g -O2" go build --buildmode=c-shared -o /tmp/simple2fa_pam.so auth.go pam.go\
 sudo cp /tmp/simple2fa_pam.so /usr/lib64/security/
 
-# Restart
+## Restart
+
 systemctl restart openvpn-server@server
 
-# See logs
-cat /etc/openvpn/server/simple2fa.log 
+## See logs
 
-# Configure PAM
-sudo vi /etc/pam.d/openvpn 
+cat /etc/openvpn/server/simple2fa.log
 
-auth    requisite     simple2fa_pam.so <skip / send>(password) <apiKey> 
-account sufficient  pam_permit.so
-session sufficient  pam_permit.so
+## Configure PAM
+
+sudo vi /etc/pam.d/openvpn
+
+### Args
+
+- send / skip - send or skip sending password REQUIRED
+- apiKey - API key for request Simple2fa server REQUIRED
+
+### Example
+
+auth    requisite   simple2fa_pam.so send FDGfdgg3in3rgnrogng34o3543vsdFGSFSGDVGDFHFEGDFGDQWE\
+account sufficient  pam_permit.so\
+session sufficient  pam_permit.so\
