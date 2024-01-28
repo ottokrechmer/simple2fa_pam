@@ -12,8 +12,10 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -30,16 +32,37 @@ type responseWithStatus struct {
 	Status string `json:"status"`
 }
 
+type Config struct {
+	ApiKey   string
+	Password string
+	Simple2faUrl  string
+}
+
+func getConfig() *Config {
+	var configFile = "./s2fa_conf.toml"
+	_, err := os.Stat(configFile)
+	if err != nil {
+		log.Println("Config file is missing: config.toml", )
+	}
+
+	var config Config
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+		log.Println(err)
+	}
+	log.Print(config.ApiKey)
+	log.Print(config.Password)
+	log.Print(config.Simple2faUrl)
+
+	return &config
+}
+
 //export go_authenticate
-func go_authenticate(pamh *C.pam_handle_t, argc C.int, pass *C.char, key *C.char) C.int {
+func go_authenticate(pamh *C.pam_handle_t) C.int {
 	logger := log.New()
-	prefix := "simple2fa"
+	prefix := "otto"
 	logger.WithField("prefix", prefix).Info("Begin New auth request")
 
-	if argc != 2 {
-		logger.WithField("prefix", prefix).Println("You have to set password policy and api key")
-		return C.PAM_AUTH_ERR
-	}
+	conf := getConfig()
 
 	// Fetch username and password from PAM
 	// Assume GetUser and GetPassword are defined elsewhere
@@ -54,14 +77,14 @@ func go_authenticate(pamh *C.pam_handle_t, argc C.int, pass *C.char, key *C.char
 
 	var url string
 	var body interface{}
-	if C.GoString(pass) == "send" {
-		url = "https://158.160.57.114/api/authWithPassword/"
+	if conf.Password == "send" {
+		url = conf.Simple2faUrl + "/api/authWithPassword/"
 		body = BodyWithPass{
 			Username: username,
 			Password: password,
 		}
-	} else if C.GoString(pass) == "skip" {
-		url = "https://158.160.57.114/api/auth/"
+	} else if conf.Password == "skip" {
+		url = conf.Simple2faUrl + "/api/auth/"
 		body = BodyWithoutPass{
 			Username: username,
 		}
@@ -82,7 +105,7 @@ func go_authenticate(pamh *C.pam_handle_t, argc C.int, pass *C.char, key *C.char
 		return C.PAM_AUTH_ERR
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Set("X-Auth-Token", C.GoString(key))
+	req.Header.Set("X-Auth-Token", conf.ApiKey)
 
 	client := &http.Client{
 		Transport: &http.Transport{

@@ -6,7 +6,7 @@ package main
 #include <security/pam_modules.h>
 #include <string.h>
 
-extern int go_authenticate(pam_handle_t *pamh, int argc, const char *pass, const char *key);
+extern int go_authenticate(pam_handle_t *pamh);
 
 const char* c_username;
 const char* c_password;
@@ -22,7 +22,7 @@ int get_user(pam_handle_t* pamh) {
 }
 
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-	return go_authenticate(pamh, argc, argv[0], argv[1]);
+	return go_authenticate(pamh);
 }
 
 int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv) {
