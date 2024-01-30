@@ -57,12 +57,17 @@ func getConfig() *Config {
 }
 
 //export go_authenticate
-func go_authenticate(pamh *C.pam_handle_t) C.int {
+func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 	logger := log.New()
 	prefix := "otto"
+	file, err := os.OpenFile("./simple2fa.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	logger.WithField("prefix", prefix).Info("Begin New auth request")
+	logger.Out = file
+	defer file.Close()
 
 	conf := getConfig()
+
+	logger.Println("message", C.GoString(message))
 
 	// Fetch username and password from PAM
 	// Assume GetUser and GetPassword are defined elsewhere

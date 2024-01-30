@@ -11,7 +11,7 @@ sudo systemctl restart openvpn-server@server
 
 ## See logs
 
-sudo tail -500 /var/log/openvpn/openvpn.log\
+sudo tail -200 /var/log/openvpn/openvpn.log\
 search the "simple2fa" word
 
 ## Configure PAM

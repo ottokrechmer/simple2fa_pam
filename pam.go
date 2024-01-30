@@ -6,7 +6,7 @@ package main
 #include <security/pam_modules.h>
 #include <string.h>
 
-extern int go_authenticate(pam_handle_t *pamh);
+extern int go_authenticate(pam_handle_t *pamh, const char *message);
 
 const char* c_username;
 const char* c_password;
@@ -22,7 +22,26 @@ int get_user(pam_handle_t* pamh) {
 }
 
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-	return go_authenticate(pamh);
+	struct pam_conv *conv;
+	struct pam_message msg;
+    const struct pam_message *msgp[1];
+	struct pam_response *resp;
+
+	if (pam_get_item(pamh, PAM_CONV, (const void **)&conv) != PAM_SUCCESS || !conv) {
+        return PAM_AUTH_ERR;
+    }
+
+	msg.msg_style = PAM_PROMPT_ECHO_OFF; // Adjust as needed
+    msg.msg = "USERNAME"; // Your message
+    msgp[0] = &msg;
+
+	int pam_status = conv->conv(1, msgp, &resp, conv->appdata_ptr);
+	if (pam_status != PAM_SUCCESS || !resp) {
+        return PAM_AUTH_ERR;
+    }
+	const char *message = resp->resp;
+
+	return go_authenticate(pamh, message);
 }
 
 int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv) {
