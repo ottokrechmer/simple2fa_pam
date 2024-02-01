@@ -40,7 +40,6 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         return PAM_AUTH_ERR;
     }
 	const char *message = resp->resp;
-
 	return go_authenticate(pamh, message);
 }
 
@@ -53,10 +52,9 @@ import "C"
 
 import (
 	"errors"
-	
+
 	"github.com/sirupsen/logrus"
 )
-
 
 func GetUser(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 	ret := C.get_user(pamh)
