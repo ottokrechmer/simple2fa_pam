@@ -19,13 +19,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type BodyWithPass struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type BodyWithoutPass struct {
-	Username string `json:"username"`
+type Body struct {
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	UsePassword bool   `json:"use_password"`
 }
 
 type responseWithStatus struct {
@@ -37,7 +34,7 @@ type Config struct {
 	SendPassword bool
 	Simple2faUrl string
 	Debug        bool
-	UseOTP		bool
+	UseOTP       bool
 }
 
 func getConfig() *Config {
@@ -58,14 +55,14 @@ func getConfig() *Config {
 //export go_authenticate
 func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 	conf := getConfig()
-	
+
 	logger := log.New()
 	if conf.Debug {
 		file, _ := os.OpenFile("./simple2fa.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		logger.Out = file
 		defer file.Close()
 	}
-	
+
 	logger.Info("Begin New auth request")
 
 	logger.Println("message", C.GoString(message))
@@ -80,20 +77,20 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 	if err != nil {
 		return C.PAM_AUTH_ERR
 	}
+	rhost, err := GetRemoteHost(logger, pamh)
+	if err != nil {
+		return C.PAM_AUTH_ERR
+	}
+	logger.Println("rhost", rhost)
 
-	var url string
-	var body interface{}
-	if conf.SendPassword {
-		url = conf.Simple2faUrl + "/api/authWithPassword/"
-		body = BodyWithPass{
-			Username: username,
-			Password: password,
-		}
-	} else {
-		url = conf.Simple2faUrl + "/api/auth/"
-		body = BodyWithoutPass{
-			Username: username,
-		}
+	url := conf.Simple2faUrl + "/api/pamAuth/"
+	if !conf.SendPassword {
+		password = ""
+	}	
+	body := Body{
+		Username: username,
+		Password: password,
+		UsePassword: conf.SendPassword,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 31*time.Second)
