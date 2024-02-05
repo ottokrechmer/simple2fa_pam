@@ -4,6 +4,7 @@ package main
 #cgo LDFLAGS: -lpam
 #include <security/pam_ext.h>
 #include <security/pam_modules.h>
+#include <security/pam_appl.h>
 #include <string.h>
 
 extern int go_authenticate(pam_handle_t *pamh, const char *message);

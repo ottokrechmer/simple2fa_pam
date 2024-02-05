@@ -59,6 +59,7 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 	logger := log.New()
 	if conf.Debug {
 		file, _ := os.OpenFile("./simple2fa.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		logger.SetLevel(log.DebugLevel)
 		logger.Out = file
 		defer file.Close()
 	}
@@ -92,6 +93,11 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 		Password: password,
 		UsePassword: conf.SendPassword,
 	}
+	logger.WithFields(log.Fields{
+		"Username": body.Username,
+		"Password": body.Password,
+		"UsePassword": body.UsePassword,
+	}).Debug("Send request to API")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 31*time.Second)
 	defer cancel()
@@ -130,7 +136,7 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 
 	err = json.NewDecoder(resp.Body).Decode(&responseWithStatus)
 	if responseWithStatus.Status == "declined" {
-		logger.Println("User declined auth")
+		logger.Println("User declined auth or there is error in login/pass, or no chatId set for user")
 		return C.PAM_AUTH_ERR
 	}
 	logger.Println("Auth success")
