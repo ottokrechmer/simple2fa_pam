@@ -23,6 +23,7 @@ type Body struct {
 	Username    string `json:"username"`
 	Password    string `json:"password"`
 	UsePassword bool   `json:"use_password"`
+	IP          string `json:"ip"`
 }
 
 type responseWithStatus struct {
@@ -66,7 +67,7 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 
 	logger.Info("Begin New auth request")
 
-	logger.Println("message", C.GoString(message))
+	// logger.Println("message", C.GoString(message))
 
 	// Fetch username and password from PAM
 	// Assume GetUser and GetPassword are defined elsewhere
@@ -87,16 +88,18 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 	url := conf.Simple2faUrl + "/api/pamAuth/"
 	if !conf.SendPassword {
 		password = ""
-	}	
+	}
 	body := Body{
-		Username: username,
-		Password: password,
+		Username:    username,
+		Password:    password,
 		UsePassword: conf.SendPassword,
+		IP:          rhost,
 	}
 	logger.WithFields(log.Fields{
-		"Username": body.Username,
-		"Password": body.Password,
+		"Username":    body.Username,
+		"Password":    body.Password,
 		"UsePassword": body.UsePassword,
+		"IP":          body.IP,
 	}).Debug("Send request to API")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 31*time.Second)
