@@ -65,25 +65,33 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 		defer file.Close()
 	}
 
-	logger.Info("Begin New auth request")
+	logger.Info("Begin new auth request")
 
-	// logger.Println("message", C.GoString(message))
-
-	// Fetch username and password from PAM
-	// Assume GetUser and GetPassword are defined elsewhere
 	username, err := GetUser(logger, pamh)
 	if err != nil {
+		logger.WithFields(log.Fields{
+			"Username":    username,
+		}).Debug("Error in getting Username")
 		return C.PAM_AUTH_ERR
 	}
 	password, err := GetPassword(logger, pamh)
 	if err != nil {
+		logger.WithFields(log.Fields{
+			"Username":    username,
+			"Password":    password,
+		}).Debug("Error in getting User Password")
 		return C.PAM_AUTH_ERR
 	}
 	rhost, err := GetRemoteHost(logger, pamh)
 	if err != nil {
+		logger.WithFields(log.Fields{
+			"Username":    username,
+			"Password":    password,
+			"UsePassword": conf.SendPassword,
+			"IP":          rhost,
+		}).Debug("Error in getting Remote Host")
 		return C.PAM_AUTH_ERR
 	}
-	logger.Println("rhost", rhost)
 
 	url := conf.Simple2faUrl + "/api/pamAuth/"
 	if !conf.SendPassword {
@@ -110,7 +118,7 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 	json_data, err := json.Marshal(&body)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(json_data))
 	if err != nil {
-		logger.Println("Error making request", err)
+		logger.Error("Error making request", err)
 		return C.PAM_AUTH_ERR
 	}
 	req.Header.Add("Content-Type", "application/json")
@@ -125,23 +133,24 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Println("Error doing request", err)
+		logger.Error("Error doing request", err)
 		return C.PAM_AUTH_ERR
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		// Log the error and return PAM authentication failure
-		logger.Println("Authentication failed with status:", resp.Status)
-		logger.Println("Body:", string(json_data))
+		logger.WithFields(log.Fields{
+			"Status": resp.Status,
+			"Body": string(json_data),
+		}).Error("Authentication failed")
 		return C.PAM_AUTH_ERR
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&responseWithStatus)
 	if responseWithStatus.Status == "declined" {
-		logger.Println("User declined auth or there is error in login/pass, or no chatId set for user")
+		logger.Info("User declined auth or there is error in login/pass, or no chatId set for user")
 		return C.PAM_AUTH_ERR
 	}
-	logger.Println("Auth success")
+	logger.Info("Auth success")
 	return C.PAM_SUCCESS
 }

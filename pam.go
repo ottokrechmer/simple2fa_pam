@@ -65,7 +65,7 @@ import (
 func GetUser(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 	ret := C.get_user(pamh)
 	if ret != C.PAM_SUCCESS {
-		logger.Println("Username could not be retrieved")
+		logger.Error("Username could not be retrieved")
 		return "", errors.New("username could not be retrieved")
 	}
 	return C.GoString(C.c_username), nil
@@ -74,7 +74,7 @@ func GetUser(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 func GetPassword(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 	ret := C.get_authtok(pamh)
 	if ret != C.PAM_SUCCESS {
-		logger.Println("User password could not be retrieved")
+		logger.Error("User password could not be retrieved")
 		return "", errors.New("user password could not be retrieved")
 	}
 	return C.GoString(C.c_password), nil
@@ -83,7 +83,7 @@ func GetPassword(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 func GetRemoteHost(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
 	ret := C.get_rhost(pamh)
 	if ret != C.PAM_SUCCESS {
-		logger.Println("User rhost could not be retrieved")
+		logger.Error("User rhost could not be retrieved")
 		return "FAIL", errors.New("user rhost could not be retrieved")
 	}
     return C.GoString(C.c_rhost), nil
