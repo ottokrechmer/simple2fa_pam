@@ -43,7 +43,7 @@ int get_otp(pam_handle_t *pamh) {
     }
 
 	msg.msg_style = PAM_PROMPT_ECHO_OFF;
-    msg.msg = "USERNAME";
+    msg.msg = "OTP";
     msgp[0] = &msg;
 
 	int pam_status = conv->conv(1, msgp, &resp, conv->appdata_ptr);

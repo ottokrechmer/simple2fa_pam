@@ -24,6 +24,7 @@ type Body struct {
 	Password    string `json:"password"`
 	UsePassword bool   `json:"use_password"`
 	IP          string `json:"ip"`
+	OTP         string `json:"otp"`
 }
 
 type responseWithStatus struct {
@@ -70,15 +71,15 @@ func go_authenticate(pamh *C.pam_handle_t) C.int {
 	username, err := GetUser(logger, pamh)
 	if err != nil {
 		logger.WithFields(log.Fields{
-			"Username":    username,
+			"Username": username,
 		}).Debug("Error in getting Username")
 		return C.PAM_AUTH_ERR
 	}
 	password, err := GetPassword(logger, pamh)
 	if err != nil {
 		logger.WithFields(log.Fields{
-			"Username":    username,
-			"Password":    password,
+			"Username": username,
+			"Password": password,
 		}).Debug("Error in getting User Password")
 		return C.PAM_AUTH_ERR
 	}
@@ -116,12 +117,14 @@ func go_authenticate(pamh *C.pam_handle_t) C.int {
 		Password:    password,
 		UsePassword: conf.SendPassword,
 		IP:          rhost,
+		OTP:         otp,
 	}
 	logger.WithFields(log.Fields{
 		"Username":    body.Username,
 		"Password":    body.Password,
 		"UsePassword": body.UsePassword,
 		"IP":          body.IP,
+		"OTP":         body.OTP,
 	}).Debug("Send request to API")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 31*time.Second)
@@ -129,7 +132,7 @@ func go_authenticate(pamh *C.pam_handle_t) C.int {
 
 	responseWithStatus := responseWithStatus{}
 
-	json_data, err := json.Marshal(&body)
+	json_data, _ := json.Marshal(&body)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(json_data))
 	if err != nil {
 		logger.Error("Error making request", err)
@@ -155,12 +158,12 @@ func go_authenticate(pamh *C.pam_handle_t) C.int {
 	if resp.StatusCode != http.StatusOK {
 		logger.WithFields(log.Fields{
 			"Status": resp.Status,
-			"Body": string(json_data),
+			"Body":   string(json_data),
 		}).Error("Authentication failed")
 		return C.PAM_AUTH_ERR
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&responseWithStatus)
+	json.NewDecoder(resp.Body).Decode(&responseWithStatus)
 	if responseWithStatus.Status == "declined" {
 		logger.Info("User declined auth or there is error in login/pass, or no chatId set for user")
 		return C.PAM_AUTH_ERR
