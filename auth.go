@@ -54,7 +54,7 @@ func getConfig() *Config {
 }
 
 //export go_authenticate
-func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
+func go_authenticate(pamh *C.pam_handle_t) C.int {
 	conf := getConfig()
 
 	logger := log.New()
@@ -88,10 +88,24 @@ func go_authenticate(pamh *C.pam_handle_t, message *C.char) C.int {
 			"Username":    username,
 			"Password":    password,
 			"UsePassword": conf.SendPassword,
-			"IP":          rhost,
 		}).Debug("Error in getting Remote Host")
 		return C.PAM_AUTH_ERR
 	}
+	var otp string
+	if conf.UseOTP {
+		otp, err = GetOTP(logger, pamh)
+		if err != nil {
+			logger.WithFields(log.Fields{
+				"Username":    username,
+				"Password":    password,
+				"UsePassword": conf.SendPassword,
+				"IP":          rhost,
+			}).Debug("Error in getting OTP")
+			return C.PAM_AUTH_ERR
+		}
+	}
+
+	logger.Error("OTP ", otp)
 
 	url := conf.Simple2faUrl + "/api/pamAuth/"
 	if !conf.SendPassword {
