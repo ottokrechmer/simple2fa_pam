@@ -95,11 +95,7 @@ func GetRemoteHost(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) 
 }
 
 func GetOTP(logger *logrus.Logger, pamh *C.pam_handle_t) (string, error) {
-	ret := C.get_otp(pamh)
-	if ret != C.PAM_SUCCESS {
-		logger.Error("User rhost could not be retrieved")
-		return "FAIL", errors.New("user rhost could not be retrieved")
-	}
+	C.get_otp(pamh)
 	return C.GoString(C.c_otp), nil
 }
 
