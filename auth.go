@@ -11,8 +11,11 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -32,11 +35,15 @@ type responseWithStatus struct {
 }
 
 type Config struct {
-	ApiKey       string
-	SendPassword bool
-	Simple2faUrl string
-	Debug        bool
-	UseOTP       bool
+	ApiKey       			string
+	SendPassword 			bool
+	Simple2faUrl 			string
+	Debug        			bool
+	UseOTP       			bool
+	UseKeyCloak  			bool
+	KeycloakTokenURL 		string
+	KeyCloakClientID 		string
+	KeyCloakClientSecret 	string
 }
 
 func getConfig() *Config {
@@ -106,7 +113,14 @@ func go_authenticate(pamh *C.pam_handle_t) C.int {
 		}
 	}
 
-	logger.Error("OTP ", otp)
+	if conf.UseKeyCloak {
+		if !keycloakConnect(logger, conf, username, password) {
+			return C.PAM_AUTH_ERR
+		}
+		conf.SendPassword = false
+	}
+
+	logger.Debug("OTP ", otp)
 
 	url := conf.Simple2faUrl + "/api/pamAuth/"
 	if !conf.SendPassword {
@@ -170,4 +184,60 @@ func go_authenticate(pamh *C.pam_handle_t) C.int {
 	}
 	logger.Info("Auth success")
 	return C.PAM_SUCCESS
+}
+
+func keycloakConnect(logger *log.Logger, config *Config, username, password string) bool {
+
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("client_id", config.KeyCloakClientID)
+	form.Set("client_secret", config.KeyCloakClientSecret)
+	form.Set("username", username)
+	form.Set("password", password)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", config.KeycloakTokenURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"Username": username,
+		}).Error("Error forming request to KeyCloak")
+		return false
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"Username": username,
+		}).Error("Error making request to KeyCloak")
+		return false
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"Username": username,
+		}).Error("Error reading response from KeyCloak")
+		return false
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		logger.WithFields(log.Fields{
+			"Username":   username,
+			"respStatus": resp.Status,
+			"Body:":      string(body),
+		}).Error("Error forming request to KeyCloak")
+		return false
+	}
+
+	logger.WithFields(log.Fields{
+		"Username":   username,
+		"respStatus": resp.Status,
+		"Body:":      string(body),
+	}).Debug("Success response from KeyCloak")
+	return true
 }
